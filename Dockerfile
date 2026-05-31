@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxslt-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /converter
+WORKDIR /app
 
 COPY requirements.txt .
 
