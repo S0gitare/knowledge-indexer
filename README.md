@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/ChromaDB-vector_store-FF6B35?style=flat" alt="ChromaDB">
   <img src="https://img.shields.io/badge/Embedding-all--MiniLM--L6--v2-8A2BE2?style=flat" alt="Embedding Model">
 </p>
-
+ 
 <p align="center">
   Pipeline de ingestão de documentos para RAG. Converte arquivos de múltiplos formatos em texto e os indexa em um banco vetorial <a href="https://www.trychroma.com/">ChromaDB</a>, pronto para uso em sistemas de Retrieval-Augmented Generation.
 </p>
