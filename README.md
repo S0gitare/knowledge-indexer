@@ -155,5 +155,6 @@ Este projeto gera e mantém o banco vetorial. O chatbot que consume esses dados 
 O projeto inclui configuração para [Dev Containers](https://containers.dev/) no VS Code. Para abrir:
 
 1. Instale a extensão **Dev Containers** no VS Code
-2. Abra a pasta do projeto
-3. `Ctrl+Shift+P` → **Reopen in Container**
+2. Abra o arquivo `.devcontainer/devcontainer.json` e configure o campo `source` no mount com o caminho da pasta onde estão seus documentos (PDF, DOCX, etc.) — essa é a pasta que o script vai varrer e processar
+3. Abra a pasta do projeto
+4. `Ctrl+Shift+P` → **Reopen in Container**
