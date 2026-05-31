@@ -5,3 +5,4 @@ dist/
 venv/
 main.spec
 test_main.py
+chroma_db/
