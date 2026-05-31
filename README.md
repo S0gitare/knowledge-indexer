@@ -1,115 +1,135 @@
 # knowledge-indexer
 
-Conversor de documentos para texto e vetores. Transforma arquivos de múltiplos formatos em `.txt` e os indexa em um banco vetorial [ChromaDB](https://www.trychroma.com/) para uso em sistemas de RAG (Retrieval-Augmented Generation).
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.12+-3776AB?style=flat&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Docker-ready-2496ED?style=flat&logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/ChromaDB-vector_store-FF6B35?style=flat" alt="ChromaDB">
+  <img src="https://img.shields.io/badge/Embedding-all--MiniLM--L6--v2-8A2BE2?style=flat" alt="Embedding Model">
+</p>
+
+<p align="center">
+  Pipeline de ingestão de documentos para RAG. Converte arquivos de múltiplos formatos em texto e os indexa em um banco vetorial <a href="https://www.trychroma.com/">ChromaDB</a>, pronto para uso em sistemas de Retrieval-Augmented Generation.
+</p>
+
+---
+
+## Visão geral
+
+```
+Documentos (PDF, DOCX, XLSX...)
+        │
+        ▼
+   [ main.py ]  ──────────────────────→  /converter/txt/*.txt
+  Conversão para TXT
+        │
+        ▼
+ [ vectorize.py ]  ──────────────────→  ChromaDB  (collection: onvio_docs)
+  Chunking + Embedding + Indexação
+```
+
+Os dois scripts são independentes e podem ser executados separadamente ou em sequência via Docker.
 
 ---
 
 ## Formatos suportados
 
-| Formato | Extensão | → TXT | → ChromaDB |
-|---------|----------|-------|------------|
-| PDF | `.pdf` | ✅ | ✅ |
-| Word | `.docx` | ✅ | ✅ |
-| Excel | `.xlsx` | ✅ | ✅ |
-| CSV | `.csv` | ✅ | ✅ |
-| PowerPoint | `.pptx` | ✅ | ✅ |
-| HTML | `.html` `.htm` | ✅ | ✅ |
+| Formato | Extensão |
+|---------|----------|
+| PDF | `.pdf` |
+| Word | `.docx` |
+| Excel | `.xlsx` |
+| CSV | `.csv` |
+| PowerPoint | `.pptx` |
+| HTML | `.html` `.htm` |
 
 ---
 
-## Arquitetura
+## Quick start
 
-```
-/converter/
-├── documento.pdf   ┐
-├── manual.docx     ├─→ main.py ──→ txt/documento.txt ──→ vectorize.py ──→ ChromaDB
-├── planilha.xlsx   ┘              txt/manual.txt
-├── txt/                (gerado automaticamente pelo main.py)
-└── chroma_db/          (gerado automaticamente no modo local)
-```
+### Pré-requisitos
 
-Os dois scripts são independentes e podem ser executados separadamente:
-- `main.py` — converte arquivos para `.txt`
-- `vectorize.py` — lê os `.txt` e indexa no ChromaDB
+- Python 3.12+ **ou** Docker
 
----
-
-## Requisitos
-
-- Python 3.12+
-- Docker (opcional, para uso com Dev Container)
-
----
-
-## Instalação
+### Com Python
 
 ```bash
+# 1. Instale as dependências
 pip install -r requirements.txt
+
+# 2. Coloque seus documentos em /converter e execute o pipeline
+python main.py && python vectorize.py
 ```
+
+### Com Docker
+
+```bash
+# Build da imagem
+docker build -t knowledge-indexer .
+
+# Execução — substitua o caminho pela pasta com seus documentos
+docker run --rm \
+  -v /caminho/para/seus/documentos:/converter \
+  knowledge-indexer
+```
+
+### Com Dev Container (VS Code)
+
+1. Instale a extensão **Dev Containers**
+2. Em `.devcontainer/devcontainer.json`, configure o campo `source` no mount com o caminho da pasta de documentos
+3. `Ctrl+Shift+P` → **Reopen in Container**
 
 ---
 
-## Uso
+## Como funciona
 
-### 1. Conversão para TXT
+### Etapa 1 — Conversão (`main.py`)
 
-Coloque os arquivos na pasta `/converter` e execute:
+Varre `/converter`, detecta o formato de cada arquivo automaticamente e gera um `.txt` correspondente em `/converter/txt/`.
 
 ```bash
 python main.py
 ```
 
-O script varre a pasta, detecta automaticamente o formato de cada arquivo e gera um `.txt` correspondente no mesmo diretório.
+### Etapa 2 — Vetorização (`vectorize.py`)
 
-### 2. Vetorização para ChromaDB
-
-Após a conversão, execute:
+Lê os `.txt`, divide em chunks de **2000 caracteres** (overlap de 200), gera embeddings com `all-MiniLM-L6-v2` e indexa no ChromaDB.
 
 ```bash
 python vectorize.py
 ```
 
-O script lê os arquivos `.txt`, divide em chunks de 2000 caracteres (com overlap de 200), gera embeddings e indexa no ChromaDB.
-
-> O modelo de embedding utilizado é `all-MiniLM-L6-v2` (Sentence Transformers), baixado automaticamente na primeira execução (~90MB).
+> O modelo de embedding (~90 MB) é baixado automaticamente na primeira execução.
 
 ---
 
-## Variáveis de ambiente
+## Deduplicação automática
 
-### `vectorize.py`
+O `vectorize.py` detecta alterações via hash MD5 e evita reprocessamento desnecessário:
+
+| Situação | Comportamento |
+|----------|--------------|
+| Arquivo novo | Indexa normalmente |
+| Arquivo sem alterações | Pula — já indexado |
+| Arquivo modificado | Remove chunks antigos e re-indexa |
+
+---
+
+## Configuração do ChromaDB
+
+Por padrão o banco é criado localmente em `/converter/chroma_db/`. Para usar um servidor remoto, configure as variáveis de ambiente:
 
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
-| `CHROMA_MODE` | `local` | Modo de conexão com o ChromaDB (`local` ou `server`) |
-| `CHROMA_HOST` | `localhost` | Host do servidor ChromaDB (somente no modo `server`) |
-| `CHROMA_PORT` | `8000` | Porta do servidor ChromaDB (somente no modo `server`) |
-
----
-
-## Modos do ChromaDB
-
-### Modo local (desenvolvimento)
-
-Por padrão, o ChromaDB é criado localmente em `/converter/chroma_db/`. Nenhuma configuração adicional é necessária.
+| `CHROMA_MODE` | `local` | `local` ou `server` |
+| `CHROMA_HOST` | `localhost` | Host do servidor (modo `server`) |
+| `CHROMA_PORT` | `8000` | Porta do servidor (modo `server`) |
 
 ```bash
-python vectorize.py
-# ou explicitamente:
-CHROMA_MODE=local python vectorize.py
-```
-
-### Modo servidor (produção)
-
-Para conectar em um servidor ChromaDB remoto (ex: container Docker na empresa):
-
-```bash
+# Exemplo — servidor remoto
 CHROMA_MODE=server CHROMA_HOST=192.168.1.100 CHROMA_PORT=8000 python vectorize.py
 ```
 
-Nesse modo, os documentos são enviados diretamente ao servidor — sem geração de banco local.
-
-#### Exemplo de servidor ChromaDB com Docker
+#### Subir um servidor ChromaDB com Docker Compose
 
 ```yaml
 services:
@@ -122,39 +142,16 @@ services:
     restart: always
 ```
 
-> Para acessar o servidor fora da rede local, é necessário estar conectado à VPN da empresa ou ter o servidor exposto com IP público.
-
----
-
-## Deduplicação e atualização
-
-O `vectorize.py` detecta automaticamente alterações nos arquivos via hash MD5:
-
-| Situação | Comportamento |
-|----------|--------------|
-| Arquivo novo | Indexa normalmente |
-| Arquivo sem alterações | Pula (já indexado) |
-| Arquivo atualizado | Remove chunks antigos e re-indexa |
+> Para acessar fora da rede local, é necessário VPN ou IP público exposto.
 
 ---
 
 ## Integração com chatbot (RAG)
 
-Este projeto gera e mantém o banco vetorial. O chatbot que consume esses dados deve:
+Este projeto cuida da **ingestão**. O chatbot que consome os dados deve:
 
-1. Usar o **mesmo modelo de embedding** (`all-MiniLM-L6-v2`) para vetorizar as perguntas dos usuários
-2. Conectar ao ChromaDB (local ou servidor) na collection `onvio_docs`
+1. Usar o **mesmo modelo de embedding** (`all-MiniLM-L6-v2`) para vetorizar as perguntas
+2. Conectar ao ChromaDB na collection `onvio_docs`
 3. Realizar busca por similaridade e passar os trechos relevantes ao LLM
 
-> O modelo de embedding precisa ser idêntico nos dois lados. O LLM que gera as respostas (GPT-4, Claude, Llama, etc.) pode ser qualquer um — ele é independente dos embeddings.
-
----
-
-## Dev Container
-
-O projeto inclui configuração para [Dev Containers](https://containers.dev/) no VS Code. Para abrir:
-
-1. Instale a extensão **Dev Containers** no VS Code
-2. Abra o arquivo `.devcontainer/devcontainer.json` e configure o campo `source` no mount com o caminho da pasta onde estão seus documentos (PDF, DOCX, etc.) — essa é a pasta que o script vai varrer e processar
-3. Abra a pasta do projeto
-4. `Ctrl+Shift+P` → **Reopen in Container**
+> O LLM que gera as respostas (GPT-4, Claude, Llama, etc.) é independente dos embeddings — use qualquer um.
